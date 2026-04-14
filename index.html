@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PhishGuard — Analisar</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="index.html">
+    <div class="nav-brand-icon">
+      <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        <circle cx="7" cy="7" r="2" fill="white"/>
+      </svg>
+    </div>
+    PhishGuard
+  </a>
+  <div class="nav-links">
+    <a class="nav-link active" href="index.html">Analisar</a>
+    <a class="nav-link" href="historico.html">Histórico</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-badge badge-red">
+      <span class="pulse"></span>
+      Análise automática
+    </div>
+    <h1>Detectar Phishing</h1>
+    <p class="page-subtitle">Cole um e-mail ou URL suspeita. A análise é feita na hora, sem enviar nada para nenhum servidor.</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="setTab('email', this)">E-mail</button>
+      <button class="tab" onclick="setTab('url', this)">URL</button>
+    </div>
+
+    <textarea
+      class="textarea"
+      id="input"
+      placeholder="Cole o conteúdo do e-mail aqui (assunto, remetente, corpo da mensagem)..."
+    ></textarea>
+
+    <button class="btn" id="btn" onclick="analyze()">Analisar agora</button>
+    <button class="btn btn-outline" id="reset-btn" style="display:none;margin-top:8px" onclick="resetForm()">Analisar outro</button>
+  </div>
+
+  <div id="result" style="display:none">
+    <div class="verdict-box verdict"></div>
+    <div class="findings-title">Indicadores encontrados</div>
+    <div class="findings"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  let currentTab = 'email';
+
+  function setTab(t, el) {
+    currentTab = t;
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    const ta = document.getElementById('input');
+    ta.placeholder = t === 'email'
+      ? 'Cole o conteúdo do e-mail aqui (assunto, remetente, corpo da mensagem)...'
+      : 'Cole a URL suspeita aqui (ex: https://seu-banco.login-seguro.net/acesso)';
+    resetForm();
+  }
+
+  function resetForm() {
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('reset-btn').style.display = 'none';
+    document.getElementById('btn').style.display = 'block';
+    document.getElementById('input').value = '';
+  }
+
+  function analyze() {
+    const input = document.getElementById('input').value.trim();
+    if (!input) return alert('Cole algum conteúdo para analisar.');
+
+    const { score, findings } = currentTab === 'email' ? analyzeEmail(input) : analyzeURL(input);
+    const verdict = getVerdict(score);
+    const summary = getSummary(verdict, score);
+
+    const resultEl = document.getElementById('result');
+    renderResult(resultEl, findings, { score, verdict, summary });
+    resultEl.style.display = 'block';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    saveToHistory({
+      type: currentTab,
+      preview: input.slice(0, 120),
+      verdict, score, summary, findings
+    });
+
+    document.getElementById('btn').style.display = 'none';
+    document.getElementById('reset-btn').style.display = 'block';
+  }
+</script>
+</body>
+</html>

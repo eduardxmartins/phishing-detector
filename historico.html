@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PhishGuard — Histórico</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="index.html">
+    <div class="nav-brand-icon">
+      <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        <circle cx="7" cy="7" r="2" fill="white"/>
+      </svg>
+    </div>
+    PhishGuard
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">Analisar</a>
+    <a class="nav-link active" href="historico.html">Histórico</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-badge badge-blue">
+      <span class="pulse"></span>
+      Análises salvas
+    </div>
+    <h1>Histórico</h1>
+    <p class="page-subtitle">Todas as suas análises anteriores, salvas no navegador.</p>
+  </div>
+
+  <div class="stat-grid" id="stats-grid"></div>
+
+  <div class="card-sm" style="display:flex;gap:6px;align-items:center;margin-bottom:1rem">
+    <div class="tabs" style="flex:1;margin:0">
+      <button class="tab active" onclick="filterHistory('all', this)">Todos</button>
+      <button class="tab" onclick="filterHistory('danger', this)">Perigosos</button>
+      <button class="tab" onclick="filterHistory('suspicious', this)">Suspeitos</button>
+      <button class="tab" onclick="filterHistory('safe', this)">Seguros</button>
+    </div>
+    <button onclick="clearHistory()" style="padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--text-muted);cursor:pointer" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">Limpar</button>
+  </div>
+
+  <div class="card">
+    <div id="history-list"></div>
+  </div>
+
+  <div id="detail" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h2 style="font-size:18px;font-weight:700">Detalhes da análise</h2>
+      <button onclick="closeDetail()" style="background:var(--surface2);border:none;border-radius:var(--radius-sm);padding:6px 14px;font-family:'Syne',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Fechar</button>
+    </div>
+    <div class="verdict-box verdict"></div>
+    <div class="findings-title">Indicadores</div>
+    <div class="findings"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  let currentFilter = 'all';
+  let allHistory = [];
+
+  function verdictColor(v) {
+    return v === 'danger' ? 'var(--red)' : v === 'suspicious' ? 'var(--amber)' : 'var(--green)';
+  }
+
+  function typeLabel(t) { return t === 'email' ? 'E-mail' : 'URL'; }
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderStats() {
+    const s = getStats();
+    document.getElementById('stats-grid').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-num">${s.total}</div>
+        <div class="stat-label">Total analisadas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--red)">${s.danger}</div>
+        <div class="stat-label">Phishing detectado</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--green)">${s.safe}</div>
+        <div class="stat-label">Confirmadas seguras</div>
+      </div>`;
+  }
+
+  function renderList(filter) {
+    const list = filter === 'all' ? allHistory : allHistory.filter(x => x.verdict === filter);
+    const el = document.getElementById('history-list');
+    if (list.length === 0) {
+      el.innerHTML = `<div class="history-empty">${filter === 'all' ? 'Nenhuma análise ainda. <a href="index.html">Comece agora →</a>' : 'Nenhuma análise nessa categoria.'}</div>`;
+      return;
+    }
+    el.innerHTML = list.map(item => `
+      <div class="history-item" onclick="showDetail(${item.id})">
+        <div class="history-verdict" style="background:${verdictColor(item.verdict)}"></div>
+        <div class="history-content">
+          <div class="history-text">${item.preview}</div>
+          <div class="history-meta">${typeLabel(item.type)} · ${formatDate(item.date)}</div>
+        </div>
+        <div class="history-score" style="color:${verdictColor(item.verdict)}">${item.score}/100</div>
+      </div>`).join('');
+  }
+
+  function filterHistory(f, el) {
+    currentFilter = f;
+    document.querySelectorAll('.tabs .tab').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    renderList(f);
+  }
+
+  function showDetail(id) {
+    const item = allHistory.find(x => x.id === id);
+    if (!item) return;
+    const det = document.getElementById('detail');
+    det.style.display = 'block';
+    renderResult(det, item.findings, item);
+    det.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function closeDetail() { document.getElementById('detail').style.display = 'none'; }
+
+  function clearHistory() {
+    if (!confirm('Limpar todo o histórico?')) return;
+    localStorage.removeItem('phishing_history');
+    allHistory = [];
+    renderStats();
+    renderList(currentFilter);
+  }
+
+  allHistory = getHistory();
+  renderStats();
+  renderList('all');
+</script>
+</body>
+</html>
