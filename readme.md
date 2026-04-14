@@ -37,9 +37,3 @@
 - ✅ Subdomínios excessivos
 - ✅ URLs encurtadas (bit.ly, tinyurl, etc.)
 
-## 🚀 Como Usar
-
-### 1. Baixar o Projeto
-```bash
-git clone https://github.com/SEU-USUARIO/phishing-detector.git
-cd phishing-detector
